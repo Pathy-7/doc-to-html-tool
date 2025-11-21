@@ -1,45 +1,42 @@
-body {
-    font-family: Arial, sans-serif; /* 页面字体 */
-    margin: 0; /* 去掉默认外边距 */
-    padding: 20px; /* 页面内边距 */
-    background: #f5f5f5; /* 页面背景色 */
-}
-
-h1 { 
-    text-align: center; /* 主标题居中 */
-}
-
 .container {
     display: flex; /* 左右布局 */
     gap: 20px; /* 左右间距 */
     margin-top: 20px; /* 顶部间距 */
+    height: calc(100vh - 100px); /* 整个容器高度，减掉标题和一些边距 */
 }
 
 .left, .right {
     flex: 1; /* 左右各占一半 */
     display: flex; /* 垂直排列 */
     flex-direction: column; /* 从上到下排列 */
+    height: 100%; /* 让子元素撑满容器高度 */
 }
 
+/* 左侧编辑器 */
 .editor {
-    flex: 1; /* 占满可用高度 */ 
+    flex: 1; /* 占满剩余空间 */
     padding: 10px; /* 内边距 */
     border: 1px solid #ccc; /* 边框 */
-    min-height: 400px; /* 最小高度 */
-    overflow: auto; /* 超出可滚动 */
+    min-height: 0; /* 避免 flex 子元素高度冲突 */
+    overflow: auto; /* 超出出现滚动条 */
     background: #fff; /* 背景色白色 */
 }
 
+/* 右侧 textarea 输出 */
 textarea {
-    flex: 1; /* 占满可用高度 */
-    resize: vertical; /* 允许垂直拉伸 */
+    flex: 1; /* 占满剩余空间 */
+    resize: none; /* 不允许用户拉伸 */
     padding: 10px; /* 内边距 */
     font-family: monospace; /* 等宽字体 */
     font-size: 14px; /* 字体大小 */
     margin-bottom: 10px; /* 下方间距 */
+    overflow: auto; /* 超出出现滚动条 */
 }
 
-button {
+/* 按钮始终可见，位于容器底部 */
+.left button, .right button {
     padding: 10px; /* 按钮内边距 */
     cursor: pointer; /* 鼠标样式 */
+    margin-top: 5px; /* 顶部间距 */
+    flex-shrink: 0; /* 不随容器缩小 */
 }
