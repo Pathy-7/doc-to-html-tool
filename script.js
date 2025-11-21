@@ -21,7 +21,10 @@ convertBtn.addEventListener("click", () => {
     // ---------- 3. 图片占位符替换 ----------
     replaceImages(doc);
 
-    // ---------- 4. 生成目录 TOC ----------
+    // ---------- 4. 表格样式处理 ----------
+    processTables(doc);
+
+    // ---------- 5. 生成目录 TOC ----------
     buildAndInsertTOC(doc);
 
     // 输出最终干净 HTML
@@ -37,24 +40,27 @@ copyBtn.addEventListener("click", () => {
 
 // ------------------------ 彻底清理 Word HTML ------------------------
 function cleanWordHTML(doc) {
-    const whitelist = ["p","h2","h3","img"]; // 允许保留的标签
+    const whitelist = ["p","h2","h3","b","ul","li","img","table","tr","th","td"]; 
 
     function recursiveClean(node) {
         if (node.nodeType === Node.ELEMENT_NODE) {
             const tag = node.tagName.toLowerCase();
 
             if (whitelist.includes(tag)) {
-                // 保留标签，但清空所有属性
-                for (let attr of Array.from(node.attributes)) {
-                    node.removeAttribute(attr.name);
+                // 清理属性，<b>保留
+                if(tag !== "b") {
+                    for (let attr of Array.from(node.attributes)) {
+                        node.removeAttribute(attr.name);
+                    }
                 }
-                // 递归处理子节点
+
+                // <ul> 加 class
+                if(tag === "ul") node.className = "no_disc has_disc list-paddingleft-2";
+
                 Array.from(node.childNodes).forEach(child => recursiveClean(child));
-            } else if (tag === "br") {
-                // 保留换行
+            } else if(tag === "br") {
                 return;
             } else {
-                // 非白名单 → 替换为文本节点
                 const text = node.textContent;
                 const textNode = doc.createTextNode(text);
                 node.parentNode.replaceChild(textNode, node);
@@ -74,8 +80,8 @@ function processH2H3(doc) {
 
         let h3Index = 1;
         let next = h2.nextElementSibling;
-        while (next && next.tagName.toLowerCase() !== "h2") {
-            if (next.tagName.toLowerCase() === "h3") {
+        while(next && next.tagName.toLowerCase() !== "h2") {
+            if(next.tagName.toLowerCase() === "h3") {
                 next.className = "star-title";
                 next.id = `${h2Index + 1}.${h3Index}`;
 
@@ -104,11 +110,11 @@ function replaceImages(doc) {
         const picture = doc.createElement("picture");
         const source = doc.createElement("source");
         source.type = "image/webp";
-        source.srcset = "PLACEHOLDER_WEBP"; // 可手动替换
+        source.srcset = "PLACEHOLDER_WEBP";
 
         const newImg = doc.createElement("img");
         newImg.loading = "lazy";
-        newImg.src = "PLACEHOLDER_PNG";    // 可手动替换
+        newImg.src = "PLACEHOLDER_PNG";
         newImg.alt = alt;
 
         picture.appendChild(source);
@@ -119,10 +125,43 @@ function replaceImages(doc) {
     });
 }
 
+// ------------------------ 表格处理 ------------------------
+function processTables(doc) {
+    const tables = doc.querySelectorAll("table");
+    tables.forEach(table => {
+        // 外层 div 包裹
+        const outerDiv = doc.createElement("div");
+        outerDiv.className = "text-center";
+
+        const flexDiv = doc.createElement("div");
+        flexDiv.className = "flexible flex-justify";
+
+        const overflowDiv = doc.createElement("div");
+        overflowDiv.className = "table-overflow";
+
+        // 给 table 添加 class
+        table.className = "guardtable table-bordered text-center tth mb0";
+        table.id = "table-guard";
+
+        // 奇偶行交替 class
+        const trs = table.querySelectorAll("tr");
+        trs.forEach((tr, index) => {
+            if(index === 0) return; // 第一行保留 th，跳过
+            tr.className = index % 2 === 1 ? "bg_tr" : "";
+        });
+
+        overflowDiv.appendChild(table);
+        flexDiv.appendChild(overflowDiv);
+        outerDiv.appendChild(flexDiv);
+
+        table.parentNode.replaceChild(outerDiv, table);
+    });
+}
+
 // ------------------------ 目录 TOC ------------------------
 function buildAndInsertTOC(doc) {
     const h2s = doc.querySelectorAll("h2");
-    if (!h2s.length) return;
+    if(!h2s.length) return;
 
     const container = doc.createElement("div");
     container.className = "collapse active";
@@ -144,12 +183,12 @@ function buildAndInsertTOC(doc) {
 
         const h3s = [];
         let next = h2.nextElementSibling;
-        while (next && next.tagName.toLowerCase() !== "h2") {
-            if (next.tagName.toLowerCase() === "h3") h3s.push(next);
+        while(next && next.tagName.toLowerCase() !== "h2") {
+            if(next.tagName.toLowerCase() === "h3") h3s.push(next);
             next = next.nextElementSibling;
         }
 
-        if (h3s.length) {
+        if(h3s.length) {
             const ol = doc.createElement("ol");
             ol.className = "collapse-ol list-paddingleft-2";
             h3s.forEach(h3 => {
