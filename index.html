@@ -2,20 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Word to HTML Converter</title>
+    <title>Word to HTML Online Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <h1>Word to HTML Online Tool</h1>
     <div class="container">
-        <h1>Word to HTML Converter</h1>
-        <div id="drop-area">
-            <p>Drag & Drop your Word (.docx) file here</p>
-            <p>or</p>
-            <input type="file" id="fileElem" accept=".docx">
+        <div class="left">
+            <h2>Paste Word Text Here</h2>
+            <textarea id="inputText" placeholder="Paste your Word content here..."></textarea>
+            <button id="convertBtn">Convert to HTML →</button>
+        </div>
+        <div class="right">
+            <h2>Generated HTML</h2>
+            <textarea id="outputHtml" readonly></textarea>
+            <button id="copyBtn">Copy HTML</button>
         </div>
     </div>
-    <!-- mammoth.js 用于解析 docx -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
