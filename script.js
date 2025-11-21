@@ -1,11 +1,13 @@
-const inputEditor = document.getElementById("inputEditor");
-const outputHtml = document.getElementById("outputHtml");
-const convertBtn = document.getElementById("convertBtn");
-const copyBtn = document.getElementById("copyBtn");
+// 获取元素
+const inputEditor = document.getElementById("inputEditor"); // contenteditable div
+const outputHtml = document.getElementById("outputHtml");   // textarea 输出
+const convertBtn = document.getElementById("convertBtn");   // 转换按钮
+const copyBtn = document.getElementById("copyBtn");         // 复制按钮
 
+// 点击 Convert 按钮
 convertBtn.addEventListener("click", () => {
-    const htmlContent = inputEditor.innerHTML;
-    if(!htmlContent) return alert("Please paste Word content first!");
+    const htmlContent = inputEditor.innerHTML; // 获取用户粘贴的 HTML
+    if(!htmlContent.trim()) return alert("Please paste Word content first!");
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
@@ -14,9 +16,10 @@ convertBtn.addEventListener("click", () => {
     replaceImages(doc);
     buildAndInsertTOC(doc);
 
-    outputHtml.value = doc.body.innerHTML;
+    outputHtml.value = doc.body.innerHTML; // 输出到右侧 textarea
 });
 
+// 点击 Copy 按钮
 copyBtn.addEventListener("click", () => {
     outputHtml.select();
     document.execCommand("copy");
@@ -27,18 +30,18 @@ copyBtn.addEventListener("click", () => {
 function processH2H3(doc){
     const h2s = doc.querySelectorAll("h2");
     h2s.forEach((h2, h2Index) => {
-        h2.className = "line-h2";
-        h2.id = `part${h2Index+1}`;
+        h2.className = "line-h2";             // 添加 H2 样式
+        h2.id = `part${h2Index+1}`;           // H2 id
 
         let h3Index = 1;
         let next = h2.nextElementSibling;
         while(next && next.tagName.toLowerCase() !== "h2") {
             if(next.tagName.toLowerCase() === "h3") {
-                next.className = "star-title";
-                next.id = `${h2Index+1}.${h3Index}`;
+                next.className = "star-title";          // H3 样式
+                next.id = `${h2Index+1}.${h3Index}`;    // H3 id X.Y
 
                 const span = doc.createElement("span");
-                span.textContent = h3Index;
+                span.textContent = h3Index;            // H3 span 内容
                 const text = next.textContent;
                 next.textContent = "";
                 next.appendChild(span);
@@ -62,11 +65,11 @@ function replaceImages(doc){
         const picture = doc.createElement("picture");
         const source = doc.createElement("source");
         source.type = "image/webp";
-        source.srcset = "PLACEHOLDER_WEBP";
+        source.srcset = "PLACEHOLDER_WEBP"; // 你可以手动替换
 
         const newImg = doc.createElement("img");
         newImg.loading = "lazy";
-        newImg.src = "PLACEHOLDER_PNG";
+        newImg.src = "PLACEHOLDER_PNG";    // 你可以手动替换
         newImg.alt = alt;
 
         picture.appendChild(source);
@@ -120,5 +123,5 @@ function buildAndInsertTOC(doc){
     });
 
     container.appendChild(content);
-    h2s[0].parentNode.insertBefore(container, h2s[0]);
+    h2s[0].parentNode.insertBefore(container, h2s[0]); // 插入到第一个 H2 前
 }
