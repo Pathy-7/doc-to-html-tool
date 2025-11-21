@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Word to HTML Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Word to HTML Converter</h1>
+        <div id="drop-area">
+            <p>Drag & Drop your Word (.docx) file here</p>
+            <p>or</p>
+            <input type="file" id="fileElem" accept=".docx">
+        </div>
+    </div>
+    <!-- mammoth.js 用于解析 docx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
