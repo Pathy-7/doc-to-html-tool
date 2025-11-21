@@ -21,10 +21,13 @@ convertBtn.addEventListener("click", () => {
     // ---------- 3. 图片占位符替换 ----------
     replaceImages(doc);
 
-    // ---------- 4. 表格样式处理 ----------
-    processTables(doc);
+    // ---------- 4. Step N 段落处理 ----------
+    processStepParagraphs(doc);
 
-    // ---------- 5. 生成目录 TOC ----------
+    // ---------- 5. 表格处理（可忽略） ----------
+    // processTables(doc); // 你决定不再处理表格
+
+    // ---------- 6. 生成目录 TOC ----------
     buildAndInsertTOC(doc);
 
     // 输出最终干净 HTML
@@ -40,7 +43,7 @@ copyBtn.addEventListener("click", () => {
 
 // ------------------------ 彻底清理 Word HTML ------------------------
 function cleanWordHTML(doc) {
-    const whitelist = ["p","h2","h3","b","ul","li","img","table","tr","th","td"]; 
+    const whitelist = ["p","h2","h3","b","ul","li","img"]; 
 
     function recursiveClean(node) {
         if (node.nodeType === Node.ELEMENT_NODE) {
@@ -125,36 +128,38 @@ function replaceImages(doc) {
     });
 }
 
-// ------------------------ 表格处理 ------------------------
-function processTables(doc) {
-    const tables = doc.querySelectorAll("table");
-    tables.forEach(table => {
-        // 外层 div 包裹
-        const outerDiv = doc.createElement("div");
-        outerDiv.className = "text-center";
+// ------------------------ Step N 段落处理 ------------------------
+function processStepParagraphs(doc) {
+    const ps = doc.querySelectorAll("p");
+    const stepRegex = /^Step\s+(\d+):\s*/i;
 
-        const flexDiv = doc.createElement("div");
-        flexDiv.className = "flexible flex-justify";
+    ps.forEach(p => {
+        const text = p.textContent;
+        const match = text.match(stepRegex);
+        if(match) {
+            const stepNum = match[1];
 
-        const overflowDiv = doc.createElement("div");
-        overflowDiv.className = "table-overflow";
+            // 设置 class
+            p.className = "step";
 
-        // 给 table 添加 class
-        table.className = "guardtable table-bordered text-center tth mb0";
-        table.id = "table-guard";
+            // 清空原内容
+            p.textContent = "";
 
-        // 奇偶行交替 class
-        const trs = table.querySelectorAll("tr");
-        trs.forEach((tr, index) => {
-            if(index === 0) return; // 第一行保留 th，跳过
-            tr.className = index % 2 === 1 ? "bg_tr" : "";
-        });
+            // 创建 <b><span>Step N.</span></b>
+            const boldSpan = document.createElement("b");
+            const span = document.createElement("span");
+            span.textContent = `Step ${stepNum}.`;
+            boldSpan.appendChild(span);
 
-        overflowDiv.appendChild(table);
-        flexDiv.appendChild(overflowDiv);
-        outerDiv.appendChild(flexDiv);
+            // 添加到 p
+            p.appendChild(boldSpan);
 
-        table.parentNode.replaceChild(outerDiv, table);
+            // 添加后续内容，保留原来的加粗
+            const restHtml = text.replace(stepRegex, "");
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = restHtml; 
+            Array.from(tempDiv.childNodes).forEach(n => p.appendChild(n));
+        }
     });
 }
 
@@ -176,7 +181,7 @@ function buildAndInsertTOC(doc) {
     content.style.display = "block";
 
     h2s.forEach((h2, h2Index) => {
-        const p = doc.createElement("p");
+        const p = document.createElement("p");
         p.className = "collapse-p";
         p.innerHTML = `<b>Part ${h2Index + 1}:</b><a href="#${h2.id}"> ${h2.textContent}</a>`;
         content.appendChild(p);
@@ -189,10 +194,10 @@ function buildAndInsertTOC(doc) {
         }
 
         if(h3s.length) {
-            const ol = doc.createElement("ol");
+            const ol = document.createElement("ol");
             ol.className = "collapse-ol list-paddingleft-2";
             h3s.forEach(h3 => {
-                const li = doc.createElement("li");
+                const li = document.createElement("li");
                 li.innerHTML = `<a href="#${h3.id}">${h3.textContent}</a>`;
                 ol.appendChild(li);
             });
