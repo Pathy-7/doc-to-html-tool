@@ -1,20 +1,12 @@
-const inputText = document.getElementById("inputText");
+const inputEditor = document.getElementById("inputEditor");
 const outputHtml = document.getElementById("outputHtml");
 const convertBtn = document.getElementById("convertBtn");
 const copyBtn = document.getElementById("copyBtn");
 
 convertBtn.addEventListener("click", () => {
-    const text = inputText.value;
-    if(!text) return alert("Please paste Word content first!");
-    
-    // 将文本换行转换成 <p>，简单处理
-    let htmlContent = text
-        .split(/\r?\n/)
-        .filter(line => line.trim() !== "")
-        .map(line => `<p>${line}</p>`)
-        .join("\n");
+    const htmlContent = inputEditor.innerHTML;
+    if(!htmlContent) return alert("Please paste Word content first!");
 
-    // 创建虚拟 DOM 处理 H2/H3、TOC、图片
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
 
@@ -25,7 +17,6 @@ convertBtn.addEventListener("click", () => {
     outputHtml.value = doc.body.innerHTML;
 });
 
-// 复制 HTML
 copyBtn.addEventListener("click", () => {
     outputHtml.select();
     document.execCommand("copy");
