@@ -1,88 +1,84 @@
+// ==========================
+// 粘贴过滤器：阻止浏览器粘贴原格式
+// ==========================
+document.getElementById("inputEditor").addEventListener("paste", function (e) {
+    e.preventDefault();
+
+    // 获取纯文本（不带 Word 样式）
+    const text = e.clipboardData.getData("text/plain");
+
+    // 把换行转换成 <p>
+    const html = text
+        .split(/\n+/)
+        .map(line => line.trim() ? `<p>${line}</p>` : "")
+        .join("");
+
+    document.execCommand("insertHTML", false, html);
+});
+
+
+// ==========================
+// 绑定按钮事件
+// ==========================
 document.getElementById("convertBtn").addEventListener("click", () => {
-    const input = document.getElementById("inputEditor").innerHTML;
+    let input = document.getElementById("inputEditor").innerHTML;
 
     let cleaned = cleanHTML(input);
-
-    // Step 自动识别
     cleaned = convertSteps(cleaned);
 
-    // Word 列表修复（方案 A）
-    cleaned = fixWordLists(cleaned);
+    // Word 粘贴过滤器已清除垃圾列表格式 → 此处转换简单可靠
+    cleaned = convertSimpleLists(cleaned);
 
     document.getElementById("outputEditor").textContent = cleaned;
 });
 
 document.getElementById("copyBtn").addEventListener("click", () => {
     const output = document.getElementById("outputEditor").textContent;
-    navigator.clipboard.writeText(output).then(() => {
-        alert("Copied!");
-    });
+    navigator.clipboard.writeText(output);
+    alert("Copied!");
 });
 
 
-// =========================
-// 核心：基础 HTML 清理
-// =========================
+// ==========================
+// 基础净化：移除 Word 样式 + span + 注释
+// ==========================
 function cleanHTML(html) {
     let div = document.createElement("div");
     div.innerHTML = html;
 
-    // 移除 Word/GDoc 垃圾属性
     div.querySelectorAll("*").forEach(el => {
+        // 删除 Word / GDoc 样式
         [...el.attributes].forEach(attr => {
-            const name = attr.name.toLowerCase();
-            if (
-                name.startsWith("style") ||
-                name.startsWith("class") ||
-                name.startsWith("align") ||
-                name.startsWith("width") ||
-                name.startsWith("height") ||
-                name.startsWith("cellpadding") ||
-                name.startsWith("cellspacing") ||
-                name.startsWith("border")
-            ) {
+            if (!["src"].includes(attr.name.toLowerCase())) {
                 el.removeAttribute(attr.name);
             }
         });
+
+        // 清除 span
+        if (el.tagName === "SPAN") el.replaceWith(...el.childNodes);
     });
 
-    // 保留的标签
-    const allowedTags = ["P", "B", "STRONG", "UL", "LI", "H2", "H3", "IMG"];
-    div.querySelectorAll("*").forEach(el => {
-        if (!allowedTags.includes(el.tagName)) {
-            if (el.tagName === "SPAN") {
-                el.replaceWith(...el.childNodes);
-            } else {
-                el.replaceWith(...el.childNodes);
-            }
-        }
-    });
-
-    // 清理注释，包括 Word 的条件注释
+    // 删除 Word 注释
     div.innerHTML = div.innerHTML.replace(/<!--[\s\S]*?-->/g, "");
 
     return div.innerHTML;
 }
 
 
-
-// =========================
-// Step 自动识别
-// =========================
+// ==========================
+// Step N: 自动识别
+// ==========================
 function convertSteps(html) {
     let div = document.createElement("div");
     div.innerHTML = html;
 
     div.querySelectorAll("p").forEach(p => {
         let text = p.textContent.trim();
+        let m = text.match(/^Step\s+(\d+):\s*(.*)/i);
 
-        const match = text.match(/^Step\s+(\d+):\s*(.*)/i);
-        if (match) {
-            let num = match[1];
-            let content = match[2];
-
+        if (m) {
             p.className = "step";
-            p.innerHTML = `<b><span>Step ${num}.</span></b> ${content}`;
+            p.innerHTML = `<b><span>Step ${m[1]}.</span></b> ${m[2]}`;
         }
     });
 
@@ -90,47 +86,38 @@ function convertSteps(html) {
 }
 
 
-
-// =========================
-// ★ 新增：Word 列表修复模块（方案 A）
-// =========================
-function fixWordLists(html) {
+// ==========================
+// 简单列表转换（因为粘贴过滤器保证非常干净）
+// ==========================
+function convertSimpleLists(html) {
     let div = document.createElement("div");
     div.innerHTML = html;
 
     let paragraphs = [...div.querySelectorAll("p")];
-    let listBuffer = [];
-    let fixedHTML = "";
+    let list = [];
+    let finalHTML = "";
 
-    function flushList() {
-        if (listBuffer.length > 0) {
-            fixedHTML += `<ul class="no_disc has_disc list-paddingleft-2">`;
-            listBuffer.forEach(item => {
-                fixedHTML += `<li>${item}</li>`;
-            });
-            fixedHTML += `</ul>`;
-            listBuffer = [];
-        }
-    }
+    const flush = () => {
+        if (list.length === 0) return;
+        finalHTML += `<ul class="no_disc has_disc list-paddingleft-2">`;
+        list.forEach(item => finalHTML += `<li>${item}</li>`);
+        finalHTML += `</ul>`;
+        list = [];
+    };
 
     paragraphs.forEach(p => {
-        let raw = p.innerHTML.trim();
+        let t = p.textContent.trim();
 
-        // 如果含有 Word 的列表痕迹（l + nbsp 结构）
-        let isWordList = raw.match(/^l(&nbsp;|\s)+/i);
-
-        if (isWordList) {
-            let clean = raw.replace(/^l(&nbsp;|\s)+/i, "").trim();
-            listBuffer.push(clean);
+        // 检测 “- xxx” 或 “• xxx”
+        if (/^[-•]\s+/.test(t)) {
+            list.push(t.replace(/^[-•]\s+/, ""));
         } else {
-            // 遇到非列表段 → 把之前的列表输出
-            flushList();
-            fixedHTML += `<p>${raw}</p>`;
+            flush();
+            finalHTML += `<p>${t}</p>`;
         }
     });
 
-    // 文档末尾如有列表 → 输出
-    flushList();
+    flush();
 
-    return fixedHTML;
+    return finalHTML;
 }
