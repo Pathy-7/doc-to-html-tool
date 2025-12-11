@@ -1,196 +1,151 @@
-// ==========================
-// 粘贴过滤器：阻止浏览器粘贴原格式
-// ==========================
-document.getElementById("inputEditor").addEventListener("paste", function (e) {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
-    const html = text
-        .split(/\n+/)
-        .map(line => line.trim() ? `<p>${line}</p>` : "")
-        .join("");
-    document.execCommand("insertHTML", false, html);
-});
+// ---------------------- script.js ----------------------
 
-// ==========================
-// 按钮事件绑定
-// ==========================
-document.getElementById("convertBtn").addEventListener("click", () => {
-    let input = document.getElementById("inputEditor").innerHTML;
+document.getElementById("convertBtn").addEventListener("click", function () {
+    const inputEditor = document.getElementById("inputEditor");
+    const outputEditor = document.getElementById("outputEditor");
 
-    let cleaned = cleanHTML(input);
-    cleaned = convertSteps(cleaned);
-    cleaned = convertSimpleLists(cleaned);
-    cleaned = convertImages(cleaned);
-    cleaned = convertH2H3(cleaned);
-    cleaned = generateTOC(cleaned);
+    if (!inputEditor || !outputEditor) return;
 
-    document.getElementById("outputEditor").textContent = cleaned;
-});
+    let html = inputEditor.innerHTML;
 
-document.getElementById("copyBtn").addEventListener("click", () => {
-    const output = document.getElementById("outputEditor").textContent;
-    navigator.clipboard.writeText(output);
-    alert("Copied!");
-});
+    // ---------------------- 1. 清理 Word 样式 ----------------------
+    function cleanHTML(input) {
+        // 移除 class="Mso*"、style、lang 等多余属性
+        return input
+            .replace(/ class=(")?Mso[a-zA-Z]+(")?/g, "")
+            .replace(/ style=(")?[^"]*(")?/g, "")
+            .replace(/ lang=(")?[^"]*(")?/g, "")
+            .replace(/<o:p>\s*<\/o:p>/g, "")
+            .replace(/<span[^>]*>/g, "")
+            .replace(/<\/span>/g, "")
+            .replace(/<!--\[if !supportLists\]-->.*?<!--\[endif\]-->/g, "");
+    }
 
-// ==========================
-// 基础净化：移除 Word 样式 + span + 注释
-// ==========================
-function cleanHTML(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
+    html = cleanHTML(html);
 
-    div.querySelectorAll("*").forEach(el => {
-        [...el.attributes].forEach(attr => {
-            if (!["src"].includes(attr.name.toLowerCase())) {
-                el.removeAttribute(attr.name);
+    // ---------------------- 2. H2/H3 处理 ----------------------
+    function convertH2H3(input) {
+        const container = document.createElement("div");
+        container.innerHTML = input;
+
+        const h2List = container.querySelectorAll("h2");
+        const toc = [];
+
+        h2List.forEach((h2, indexH2) => {
+            const partId = `part${indexH2 + 1}`;
+            h2.className = "line-h2";
+            h2.id = partId;
+
+            // TOC 用
+            toc.push({ id: partId, text: h2.textContent, h3: [] });
+
+            const h3List = [];
+            // 找到同一个 H2 后面的 H3 直到下一个 H2
+            let next = h2.nextElementSibling;
+            let h3Counter = 1;
+            while (next && next.tagName !== "H2") {
+                if (next.tagName === "H3") {
+                    next.className = "star-title";
+                    next.id = `${indexH2 + 1}.${h3Counter}`;
+
+                    // 添加 span
+                    next.innerHTML = `<span>${h3Counter}</span>${next.textContent}`;
+                    h3List.push({ id: next.id, text: next.textContent });
+                    h3Counter++;
+                }
+                next = next.nextElementSibling;
+            }
+            toc[indexH2].h3 = h3List;
+        });
+
+        return { html: container.innerHTML, toc: toc };
+    }
+
+    const result = convertH2H3(html);
+    html = result.html;
+    const tocData = result.toc;
+
+    // ---------------------- 3. Step 段落处理 ----------------------
+    function convertSteps(input) {
+        const container = document.createElement("div");
+        container.innerHTML = input;
+
+        container.querySelectorAll("p").forEach((p) => {
+            const text = p.textContent;
+            const match = text.match(/^Step (\d+):\s*(.*)/i);
+            if (match) {
+                const stepNum = match[1];
+                const stepText = match[2];
+                p.className = "step";
+                // 保留原文加粗用 <b>
+                p.innerHTML = `<b><span>Step ${stepNum}.</span></b> ${stepText}`;
             }
         });
-        if (el.tagName === "SPAN") el.replaceWith(...el.childNodes);
-    });
 
-    div.innerHTML = div.innerHTML.replace(/<!--[\s\S]*?-->/g, "");
+        return container.innerHTML;
+    }
 
-    return div.innerHTML;
-}
+    html = convertSteps(html);
 
-// ==========================
-// Step N 段落转换
-// ==========================
-function convertSteps(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
+    // ---------------------- 4. 图片占位替换 ----------------------
+    function convertImages(input) {
+        const container = document.createElement("div");
+        container.innerHTML = input;
 
-    const paragraphs = div.querySelectorAll("p");
-    const stepRegex = /^Step\s+(\d+)\s*:\s*(.*)$/i;
+        container.querySelectorAll("img").forEach((img) => {
+            const newHTML = `<p class="text-center amplify-wraper">
+<picture>
+<source type="image/webp" srcset="https://images.famiguard.com/famiguarden/assets/article/mobile-tracker/tmobile-familywhere.webp">
+<img loading="lazy" src="https://images.famiguard.com/famiguarden/assets/article/mobile-tracker/tmobile-familywhere.png" alt="${img.alt}">
+</picture>
+</p>`;
+            const wrapper = document.createElement("div");
+            wrapper.innerHTML = newHTML;
+            img.replaceWith(wrapper.firstElementChild);
+        });
 
-    paragraphs.forEach(p => {
-        const text = p.innerText.trim();
-        const match = text.match(stepRegex);
-        if (!match) return;
+        return container.innerHTML;
+    }
 
-        const stepNumber = match[1];
-        const restText = match[2];
+    html = convertImages(html);
 
-        const newHTML =
-            `<p class="step"><b><span>Step ${stepNumber}.</span></b> ${restText}</p>`;
+    // ---------------------- 5. TOC 生成 ----------------------
+    function generateTOC(tocData) {
+        const container = document.createElement("div");
+        container.className = "collapse active";
+        let tocHTML = `<h4 class="collapse-title">Table of Contents</h4><div class="collapse-content" style="display: block;">`;
 
-        p.outerHTML = newHTML;
-    });
+        tocData.forEach((h2) => {
+            tocHTML += `<p class="collapse-p"><b>${h2.text}:</b><a href="#${h2.id}"> ${h2.text}</a></p>`;
+            if (h2.h3.length > 0) {
+                tocHTML += `<ol class="collapse-ol list-paddingleft-2">`;
+                h2.h3.forEach((h3) => {
+                    tocHTML += `<li><a href="#${h3.id}">${h3.text}</a></li>`;
+                });
+                tocHTML += `</ol>`;
+            }
+        });
 
-    return div.innerHTML;
-}
+        tocHTML += `</div>`;
+        container.innerHTML = tocHTML;
+        return container.outerHTML;
+    }
 
-// ==========================
-// 序号列表转换
-// ==========================
-function convertSimpleLists(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
+    const tocHTML = generateTOC(tocData);
 
-    let paragraphs = [...div.querySelectorAll("p")];
-    let list = [];
-    let finalHTML = "";
+    // ---------------------- 6. 插入 TOC ----------------------
+    const container = document.createElement("div");
+    container.innerHTML = html;
 
-    const flush = () => {
-        if (list.length === 0) return;
-        finalHTML += `<ul class="no_disc has_disc list-paddingleft-2">`;
-        list.forEach(item => finalHTML += `<li>${item}</li>`);
-        finalHTML += `</ul>`;
-        list = [];
-    };
+    const firstH2 = container.querySelector("h2");
+    if (firstH2) {
+        firstH2.insertAdjacentHTML("beforebegin", tocHTML);
+    } else {
+        container.insertAdjacentHTML("afterbegin", tocHTML);
+    }
 
-    paragraphs.forEach(p => {
-        let t = p.textContent.trim();
-        if (/^[-•]\s+/.test(t)) {
-            list.push(t.replace(/^[-•]\s+/, ""));
-        } else {
-            flush();
-            finalHTML += `<p>${t}</p>`;
-        }
-    });
+    html = container.innerHTML;
 
-    flush();
-    return finalHTML;
-}
-
-// ==========================
-// 图片占位转换
-// ==========================
-function convertImages(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
-
-    div.querySelectorAll("img").forEach(img => {
-        const src = img.getAttribute("src") || "";
-        const alt = img.getAttribute("alt") || "";
-        const newHTML = `
-<p class="text-center amplify-wraper">
-  <picture>
-    <source type="image/webp" srcset="${src.replace(/\.\w+$/, ".webp")}">
-    <img loading="lazy" src="${src}" alt="${alt}">
-  </picture>
-</p>
-`;
-        img.outerHTML = newHTML;
-    });
-
-    return div.innerHTML;
-}
-
-// ==========================
-// H2/H3 转换 + 自动 ID
-// ==========================
-function convertH2H3(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
-
-    const h2s = div.querySelectorAll("h2");
-    h2s.forEach((h2, i) => {
-        h2.className = "line-h2";
-        h2.id = "part" + (i + 1);
-    });
-
-    const h3s = div.querySelectorAll("h3");
-    h3s.forEach(h3 => {
-        const prevH2 = h3.previousElementSibling ? [...h3.previousElementSibling.parentNode.children].reverse().find(el => el.tagName === "H2") : null;
-        if (!prevH2) return;
-
-        const h2Index = parseInt(prevH2.id.replace("part", ""), 10);
-        const siblingsH3 = [...prevH2.parentNode.querySelectorAll("h3")].filter(e => e.compareDocumentPosition(h3) & Node.DOCUMENT_POSITION_FOLLOWING);
-        const h3Index = siblingsH3.length + 1;
-
-        h3.className = "star-title";
-        h3.id = `${h2Index}.${h3Index}`;
-        h3.innerHTML = `<span>${h3Index}</span>${h3.textContent}`;
-    });
-
-    return div.innerHTML;
-}
-
-// ==========================
-// TOC 生成（放在第一个 H2 前面）
-// ==========================
-function generateTOC(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
-
-    const tocDiv = document.createElement("div");
-    tocDiv.className = "collapse active";
-    tocDiv.innerHTML = `
-<h4 class="collapse-title">Table of Contents</h4>
-<div class="collapse-content" style="display:block;"></div>
-`;
-
-    const tocContent = tocDiv.querySelector(".collapse-content");
-    const h2s = div.querySelectorAll("h2");
-
-    h2s.forEach((h2, i) => {
-        tocContent.innerHTML += `<p class="collapse-p"><b>Part ${i+1}:</b><a href="#${h2.id}"> ${h2.textContent}</a></p>`;
-    });
-
-    const firstH2 = div.querySelector("h2");
-    if (firstH2) firstH2.before(tocDiv);
-
-    return div.innerHTML;
-}
+    // ---------------------- 输出 ----------------------
+    outputEditor.innerHTML = html;
+});
