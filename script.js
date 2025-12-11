@@ -16,18 +16,18 @@ document.getElementById("inputEditor").addEventListener("paste", function (e) {
     document.execCommand("insertHTML", false, html);
 });
 
-
 // ==========================
-// 绑定按钮事件
+// 按钮事件绑定
 // ==========================
 document.getElementById("convertBtn").addEventListener("click", () => {
     let input = document.getElementById("inputEditor").innerHTML;
 
     let cleaned = cleanHTML(input);
     cleaned = convertSteps(cleaned);
-
-    // Word 粘贴过滤器已清除垃圾列表格式 → 此处转换简单可靠
     cleaned = convertSimpleLists(cleaned);
+    cleaned = convertImages(cleaned);
+    cleaned = convertH2H3(cleaned);
+    cleaned = generateTOC(cleaned);
 
     document.getElementById("outputEditor").textContent = cleaned;
 });
@@ -37,7 +37,6 @@ document.getElementById("copyBtn").addEventListener("click", () => {
     navigator.clipboard.writeText(output);
     alert("Copied!");
 });
-
 
 // ==========================
 // 基础净化：移除 Word 样式 + span + 注释
@@ -64,30 +63,35 @@ function cleanHTML(html) {
     return div.innerHTML;
 }
 
+// ==========================
+// Step N 段落转换
+// ==========================
+function convertSteps(html) {
+    let div = document.createElement("div");
+    div.innerHTML = html;
 
-// Step 段落转换
-const stepRegex = /^Step\s+(\d+)\s*:\s*(.*)$/i;
+    const paragraphs = div.querySelectorAll("p");
+    const stepRegex = /^Step\s+(\d+)\s*:\s*(.*)$/i;
 
-paragraphs.forEach(p => {
-    const text = p.innerText.trim();
-    const match = text.match(stepRegex);
-    if (!match) return;
+    paragraphs.forEach(p => {
+        const text = p.innerText.trim();
+        const match = text.match(stepRegex);
+        if (!match) return;
 
-    const stepNumber = match[1];
-    const restText = match[2];
+        const stepNumber = match[1];
+        const restText = match[2];
 
-    // 创建新 HTML
-    const newHTML =
-        `<p class="step"><b><span>Step ${stepNumber}.</span></b> ${restText}</p>`;
+        const newHTML =
+            `<p class="step"><b><span>Step ${stepNumber}.</span></b> ${restText}</p>`;
 
-    // 直接替换整个节点的 HTML
-    p.outerHTML = newHTML;
-});
+        p.outerHTML = newHTML;
+    });
 
-
+    return div.innerHTML;
+}
 
 // ==========================
-// 简单列表转换（因为粘贴过滤器保证非常干净）
+// 序号列表转换
 // ==========================
 function convertSimpleLists(html) {
     let div = document.createElement("div");
@@ -118,6 +122,16 @@ function convertSimpleLists(html) {
     });
 
     flush();
-
     return finalHTML;
 }
+
+// ==========================
+// 图片占位转换
+// ==========================
+function convertImages(html) {
+    let div = document.createElement("div");
+    div.innerHTML = html;
+
+    div.querySelectorAll("img").forEach(img => {
+        // 用你提供的占位结构替换，src/alt 保留
+        const src = i
