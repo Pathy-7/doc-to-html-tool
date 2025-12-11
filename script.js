@@ -65,25 +65,25 @@ function cleanHTML(html) {
 }
 
 
-// ==========================
-// Step N: 自动识别
-// ==========================
-function convertSteps(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
+// Step 段落转换
+const stepRegex = /^Step\s+(\d+)\s*:\s*(.*)$/i;
 
-    div.querySelectorAll("p").forEach(p => {
-        let text = p.textContent.trim();
-        let m = text.match(/^Step\s+(\d+):\s*(.*)/i);
+paragraphs.forEach(p => {
+    const text = p.innerText.trim();
+    const match = text.match(stepRegex);
+    if (!match) return;
 
-        if (m) {
-            p.className = "step";
-            p.innerHTML = `<b><span>Step ${m[1]}.</span></b> ${m[2]}`;
-        }
-    });
+    const stepNumber = match[1];
+    const restText = match[2];
 
-    return div.innerHTML;
-}
+    // 创建新 HTML
+    const newHTML =
+        `<p class="step"><b><span>Step ${stepNumber}.</span></b> ${restText}</p>`;
+
+    // 直接替换整个节点的 HTML
+    p.outerHTML = newHTML;
+});
+
 
 
 // ==========================
